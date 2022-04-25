@@ -6,11 +6,14 @@ import java.awt.*;
 
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumnModel;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -28,30 +31,42 @@ public class Main {
     public static int currentPage = 0;
     static int pageSize =  4096;
     static PageTable model = new PageTable();
-    static JTable table = new JTable(model);
+    static JTable table = new JTable(model){
+        public boolean editCellAt(int row, int column, java.util.EventObject e) {
+            return false;
+        }
+    };
 
     public static void main(String[] args) throws ParserConfigurationException, IOException, SAXException, SAXException {
         list = getInstructionList("Instructions_30_3.xml");
+        table.getTableHeader().setReorderingAllowed(false);
 
         //Creating the Frame
         JFrame frame = new JFrame("Virtual memory");
+        frame.setSize(new Dimension(600, 600));
+        frame.setFocusable(true);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(400, 400);
+
 
         //Creating the MenuBar and adding components
         JMenuBar mb = new JMenuBar();
 
         JMenu m1 = new JMenu("Run");
         mb.add(m1);
-        JMenuItem m11 = new JMenuItem("1 instructie");
-        JMenuItem m12 = new JMenuItem("Alle instructies");
-        JMenuItem m13 = new JMenuItem("Print");
+        JMenuItem m11 = new JMenuItem("Volgende instructie");
+        JMenuItem m12 = new JMenuItem("Vorige instructie");
+        JMenuItem m13 = new JMenuItem("Alle instructies");
         m1.add(m11);
         m1.add(m12);
         m1.add(m13);
         m11.addActionListener(e -> runOneInstruction());
-        m12.addActionListener(e -> runAllInstructions());
-        m13.addActionListener(e -> System.out.println(list.instructions.size()));
+        m12.addActionListener(e -> rewindOneInstruction());
+        m13.addActionListener(e -> runAllInstructions());
+
+        KeyStroke nextKey = KeyStroke.getKeyStroke("RIGHT");
+        m11.setAccelerator(nextKey);
+        KeyStroke prevKey = KeyStroke.getKeyStroke("LEFT");
+        m12.setAccelerator(prevKey);
 
         JMenu m2 = new JMenu("Set File");
         mb.add(m2);
@@ -79,6 +94,10 @@ public class Main {
     }
 
     public static void runOneInstruction(){
+        if(currentPage == list.instructions.size() - 1){
+            return;
+        };
+
         Instruction currentInstruction = list.instructions.get( currentPage++ );
         int address = currentInstruction.address;
         int process = currentInstruction.processID;
@@ -90,37 +109,37 @@ public class Main {
             currentPageTable = pageTable;
             pages.addPageTable(process,pageTable);
         }
-        else if(operation.equals("Terminate")){
-            pages.removePageTable(process);
-        }
-        else if(operation.equals("Write")){
-            currentPageTable = PageTableList.get(process);
-        }
         else{
             currentPageTable = PageTableList.get(process);
         }
 
+
         int pageFramenummer = getPageframe(address);
         Page currentPage = currentPageTable.getPage(pageFramenummer);
         if(currentPage == null){
-            Page newPage = new Page(0,0,0, pageFramenummer);
+            Page newPage = new Page(process,0,0, pageFramenummer);
             currentPageTable.addPage(newPage);
+            currentPage = newPage;
         }
 
-        pages.updatePageTable(process, currentPageTable);
-        currentPageTable.updatePage();
+        model.setData(currentPageTable);
 
-        for (Map.Entry<Integer, PageTable> entry : pages.pages.entrySet()) {
-            for(Object i : entry.getValue().data){
-                System.out.println(entry.getKey()+ "  " + ((Page)i).getFramenummer());
-            }
-            System.out.println("---------------------------");
+        for(Object i : pages.get(process).data){
+            System.out.println(process + "  " + ((Page)i).getFramenummer());
         }
+        System.out.println("---------------------------");
 
+        if(operation.equals("Terminate")){
+            pages.removePageTable(process);
+        }
+    }
 
-
-
-
+    public static void rewindOneInstruction(){
+        int previousIndex = currentPage - 1;
+        currentPage = 0;
+        for(int i = 0; i <  previousIndex; i++){
+            runOneInstruction();
+        }
     }
 
     public static void runAllInstructions(){

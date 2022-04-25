@@ -17,6 +17,10 @@ public class PageTable extends AbstractTableModel{
         super();
         data = d;
     }
+    public PageTable(PageTable  p) {
+        super();
+        data = p.data;
+    }
 
     public int getColumnCount() {
         return columns.length;
@@ -66,6 +70,10 @@ public class PageTable extends AbstractTableModel{
 
     public void setData(Vector  d) {
         data = d;
+        fireTableChanged(new TableModelEvent(this));
+    }
+    public void setData(PageTable pt) {
+        data = pt.data;
         fireTableChanged(new TableModelEvent(this));
     }
 

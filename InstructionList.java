@@ -24,6 +24,13 @@ public class InstructionList {
         instructions = array.instructions;
     }
 
+    Instruction get(int index){
+        if(index == instructions.size() || index < 0){
+            return null;
+        }
+        return instructions.get(index);
+    }
+
     /*public void sortProcessID(){
         Collections.sort(instructions, Comparator.comparingInt(p -> p.processID));
     }

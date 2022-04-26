@@ -6,66 +6,18 @@ import java.util.Vector;
 
 public class PageTable extends AbstractTableModel{
     public Vector data = new Vector();
+    private final int rows = 16;
     private final String[] columns = {"Present bit",
             "Modify bit",
             "Last access time",
             "Framenummer"};
 
 
-    public PageTable() {}
-    public PageTable(Vector  d) {
-        super();
-        data = d;
-    }
-    public PageTable(PageTable  p) {
-        super();
-        data = p.data;
-    }
-
-    public int getColumnCount() {
-        return columns.length;
-    }
-    public int getRowCount() {
-        return data.size();
-    }
-    public void setValueAt(Object value, int row, int col) {
-        Page page = (Page) (data.elementAt(row));
-
-        switch (col) {
-            case 0:
-                page.setPresentBit((Integer) value);
-                break;
-            case 1:
-                page.setModifyBit((Integer) value);
-                break;
-            case 2:
-                page.setLastAccessTime((Integer) value);
-                break;
-            case 3:
-                page.setFramenummer((Integer) value);
-                break;
+    public PageTable() {
+        for(int i = 0; i < rows; i++){
+            Page p = new Page(0,0,0, i);
+            data.add(p);
         }
-    }
-
-    public String getColumnName(int col) {
-        return columns[col];
-    }
-
-    public Object getValueAt(int row, int col) {
-        Page page = (Page) (data.elementAt(row));
-
-        switch (col) {
-            case 0:
-                return page.getPresentBit();
-            case 1:
-                return page.getModifyBit();
-            case 2:
-                return page.getLastAccessTime();
-            case 3:
-                return page.getFramenummer();
-        }
-
-        return new String();
     }
 
     public void setData(Vector  d) {
@@ -107,6 +59,42 @@ public class PageTable extends AbstractTableModel{
             return true;
         }
         return false;
+    }
+
+
+    //Standaard code voor JTable Template, niet verwijderen!
+    public int getColumnCount() {
+        return columns.length;
+    }
+    public int getRowCount() {
+        return data.size();
+    }
+    public void setValueAt(Object value, int row, int col) {
+        Page page = (Page) (data.elementAt(row));
+
+        switch (col) {
+            case 0 -> page.setPresentBit((Integer) value);
+            case 1 -> page.setModifyBit((Integer) value);
+            case 2 -> page.setLastAccessTime((Integer) value);
+            case 3 -> page.setFramenummer((Integer) value);
+        }
+    }
+
+    public String getColumnName(int col) {
+        return columns[col];
+    }
+
+    public Object getValueAt(int row, int col) {
+        Page page = (Page) (data.elementAt(row));
+
+        return switch (col) {
+            case 0 -> page.getPresentBit();
+            case 1 -> page.getModifyBit();
+            case 2 -> page.getLastAccessTime();
+            case 3 -> page.getFramenummer();
+            default -> new String();
+        };
+
     }
 
 }

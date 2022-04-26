@@ -29,4 +29,8 @@ public class PageTableList {
     static PageTable get(int processId){
         return pages.get(processId);
     }
+
+    void reset(){
+        pages.clear();
+    }
 }

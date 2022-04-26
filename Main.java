@@ -191,7 +191,7 @@ public class Main {
 
         PageTable instructionIndexTable;
         if(operation.equals("Start")){
-            PageTable pageTable = new PageTable();
+            PageTable pageTable = new PageTable(process);
             instructionIndexTable = pageTable;
             pages.addPageTable(process,pageTable);
         }
@@ -255,6 +255,7 @@ public class Main {
 
     private static void reset() {
         instructionIndex = 0;
+        ptmodel.setData(new PageTable());
         pages.reset();
         ram.reset();
         setInfo();

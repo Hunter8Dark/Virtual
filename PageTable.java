@@ -15,7 +15,14 @@ public class PageTable extends AbstractTableModel{
 
     public PageTable() {
         for(int i = 0; i < rows; i++){
-            Page p = new Page(0,0,0, i);
+            Page p = new Page(-1,0,0, i);
+            data.add(p);
+        }
+    }
+
+    public PageTable(int process) {
+        for(int i = 0; i < rows; i++){
+            Page p = new Page(process,0,0, i);
             data.add(p);
         }
     }

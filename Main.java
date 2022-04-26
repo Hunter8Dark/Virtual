@@ -221,7 +221,7 @@ public class Main {
         System.out.println(instructionIndex);
 
         int previousIndex = instructionIndex - 1;
-        instructionIndex = 0;
+        reset();
 
 
         if(previousIndex == 0){

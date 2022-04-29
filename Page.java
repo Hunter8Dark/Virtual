@@ -1,54 +1,75 @@
 public class Page {
 
-    private Integer presentBit;
+    private int virtualPagenummer;
 
-    private Integer modifyBit;
+    private int presentBit;
 
-    private Integer lastAccessTime;
+    private int modifyBit;
 
-    private Integer framenummer;
+    private int lastAccessTime;
 
-    public Page() {
-    }
+    private String fysicalFramenummer;
 
-    public Page(Integer pb, Integer mb, Integer lat, Integer fn) {
+    private int pageIn;
+    private int pageOut;
+
+    public Page(int vpn ,int pb, int mb, int lat, String ffn) {
+        virtualPagenummer = vpn;
         presentBit = pb;
         modifyBit = mb;
         lastAccessTime = lat;
-        framenummer = fn;
+        fysicalFramenummer = ffn;
+        pageIn = 0;
+        pageOut = 0;
     }
 
-    public Integer getPresentBit() {
+    public int getPresentBit() {
         return presentBit;
     }
 
-    public Integer getModifyBit() {
+    public int getModifyBit() {
         return modifyBit;
     }
 
-    public Integer getLastAccessTime() {
+    public int getLastAccessTime() {
         return lastAccessTime;
     }
 
-    public Integer getFramenummer() {
-        return framenummer;
+    public int getVirtualPagenummer(){ return virtualPagenummer; }
+
+    public String getFysicalFramenummer() {
+        return fysicalFramenummer;
     }
 
 
-    public void setPresentBit(Integer pb) {
+    public void setPresentBit(int pb) {
         presentBit = pb;
     }
 
-    public void setModifyBit(Integer mb) {
+    public void setModifyBit(int mb) {
         modifyBit = mb;
     }
 
-    public void setLastAccessTime(Integer lat) {
-        lastAccessTime = lat;
+    public void setLastAccessTime(int lat) { lastAccessTime = lat; }
+
+    public void setVirtualPagenummer(int vpn) {virtualPagenummer = vpn;}
+
+    public void setFysicalFramenummer(String ffn) {
+        fysicalFramenummer = ffn;
     }
 
-    public void setFramenummer(Integer fn) {
-        framenummer = fn;
+    public void addOut(){
+        pageOut++;
+    }
+    public void addIn(){
+        pageIn++;
+    }
+
+    public int getOut(){
+        return pageOut;
+    }
+    public int getIn(){
+        return pageIn;
     }
 
 }

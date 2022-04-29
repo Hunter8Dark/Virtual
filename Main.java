@@ -5,7 +5,10 @@ import javax.swing.*;
 import java.awt.*;
 
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 import javax.xml.parsers.DocumentBuilder;
@@ -46,20 +49,40 @@ public class Main {
         }
     };
     static JLabel instructionLabel = new JLabel("Systeemklok: 1", SwingConstants.CENTER);
-    static JLabel nextVirtualLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel prevVirtualLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel nextFysicalLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel prevFysicalLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel nextFrameLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel prevFrameLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel nextOffsetLabel = new JLabel("1", SwingConstants.CENTER);
-    static JLabel prevOffsetLabel = new JLabel("1", SwingConstants.CENTER);
+    static JLabel nextVirtualLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel prevVirtualLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel nextFysicalLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel prevFysicalLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel nextFrameLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel prevFrameLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel nextOffsetLabel = new JLabel("?", SwingConstants.CENTER);
+    static JLabel prevOffsetLabel = new JLabel("?", SwingConstants.CENTER);
 
 
     public static void main(String[] args) throws ParserConfigurationException, IOException, SAXException, SAXException {
         list = getInstructionList("Instructions_30_3.xml");
+
         pagetable.getTableHeader().setReorderingAllowed(false);
+        for(Integer i = 0; i < pagetable.getColumnCount(); i++){
+            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+            centerRenderer.setHorizontalAlignment( JLabel.CENTER );
+            pagetable.getColumnModel().getColumn(i).setCellRenderer( centerRenderer );
+        }
+        pagetable.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
+            public void valueChanged(ListSelectionEvent event) {
+                Page p = ptmodel.getPage(pagetable.getSelectedRow());
+                toast t = new toast("Page in: " + p.getIn() + " Page out: " + p.getOut(), 150, 400);
+                t.showtoast();
+            }
+        });
+
         ramtable.getTableHeader().setReorderingAllowed(false);
+        for(Integer i = 0; i < ramtable.getColumnCount(); i++){
+            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+            centerRenderer.setHorizontalAlignment( JLabel.CENTER );
+            ramtable.getColumnModel().getColumn(i).setCellRenderer( centerRenderer );
+
+        }
 
         //Creating the Frame
         JFrame frame = new JFrame("Virtual memory");
@@ -199,21 +222,40 @@ public class Main {
             instructionIndexTable = PageTableList.get(process);
         }
 
-        int pageFramenummer = getPageframe(address);
-        RamFrame currentFrame = ram.getFrame(pageFramenummer, process);
+        int pagenummer = getPagenummer(address);
+        PageTable currentPagetable = pages.get(process);
+        RamFrame currentFrame = ram.getFrame(pagenummer, process);
         if(currentFrame == null){
-            RamFrame newFrame = new RamFrame(process, pageFramenummer);
-            ram.addFrame(newFrame);
+            RamFrame newFrame = new RamFrame(process, pagenummer);
+
+            int newPage;
+            if(!ram.isFull()){
+                newPage = ram.addFrame(newFrame);
+            }
+            else{
+                //LRU Logic, als test verwijderd het voorlopig telkens de bovenste frame
+                int oldpage = ram.replaceFrame(0, newFrame);
+                currentPagetable.getPage(oldpage).addOut();
+                currentPagetable.setValue(0,oldpage,1);
+                currentPagetable.setValue("-",oldpage,4);
+
+                newPage = oldpage;
+            }
+
+            currentPagetable.getPage(pagenummer).addIn();
+            currentPagetable.setValue(1,pagenummer,1);
+            currentPagetable.setValue(String.valueOf(newPage),pagenummer,4);
+
         }
+        currentPagetable.setValue(1,pagenummer,3);
 
         ptmodel.setData(instructionIndexTable);
 
+        //setInfo();
+        System.out.println(instructionIndex);
         if(operation.equals("Terminate")){
             pages.removePageTable(process);
         }
-
-        setInfo();
-        System.out.println(instructionIndex);
     }
 
 
@@ -238,7 +280,6 @@ public class Main {
         for(int i = instructionIndex; i < list.instructions.size(); i++){
             runOneInstruction();
         }
-        ram.sort();
     }
 
     public static InstructionList pickSet(int setNumber){
@@ -279,7 +320,7 @@ public class Main {
         return null;
     }
 
-    public static int getPageframe(int address){
+    public static int getPagenummer(int address){
         return address / pageSize;
     }
 
@@ -289,21 +330,25 @@ public class Main {
 
         if(nextInstruction != null){
             nextVirtualLabel.setText(Integer.toString(nextInstruction.address));
-            //nextFysicalLabel.setText(Integer.toString());
-            nextFrameLabel.setText(Integer.toString(getPageframe(nextInstruction.address)));
-            //nextOffsetLabel.setText(Integer.toString());
+            nextFrameLabel.setText(Integer.toString(getPagenummer(nextInstruction.address)));
         }
         else{
             nextVirtualLabel.setText("/");
-            nextFysicalLabel.setText("/");
+            nextFysicalLabel.setText("?");
             nextFrameLabel.setText("/");
-            nextOffsetLabel.setText("/");
+            nextOffsetLabel.setText("?");
         }
         if(prevInstruction != null){
-            prevVirtualLabel.setText(Integer.toString(prevInstruction.address));
-            //prevFysicalLabel.setText(Integer.toString());
-            prevFrameLabel.setText(Integer.toString(getPageframe(prevInstruction.address)));
-            //prevOffsetLabel.setText(Integer.toString());
+            int address = prevInstruction.address;
+            int pagenummer = getPagenummer(prevInstruction.address);
+            int framenummer = Integer.parseInt(pages.get(prevInstruction.processID).getPage(pagenummer).getFysicalFramenummer());
+            int offset = address - address / pageSize * pageSize;
+            int faddress = framenummer * pageSize + offset;
+
+            prevVirtualLabel.setText(Integer.toString(address));
+            prevFysicalLabel.setText(Integer.toString(faddress));
+            prevFrameLabel.setText(Integer.toString(framenummer));
+            prevOffsetLabel.setText(Integer.toString(offset));
         }
         else{
             prevVirtualLabel.setText("/");

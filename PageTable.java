@@ -1,48 +1,46 @@
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.AbstractTableModel;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
 
 public class PageTable extends AbstractTableModel{
-    public Vector data = new Vector();
+    public Map<Integer,Page> data = new HashMap<>();
     private final int rows = 16;
-    private final String[] columns = {"Present bit",
+    private final String[] columns = {"VPN",
+            "Present bit",
             "Modify bit",
             "Last access time",
-            "Framenummer"};
+            "FPN"};
 
 
     public PageTable() {
         for(int i = 0; i < rows; i++){
-            Page p = new Page(-1,0,0, i);
-            data.add(p);
+            Page p = new Page(i,0,0,0, "-");
+            data.put(i, p);
         }
     }
 
     public PageTable(int process) {
         for(int i = 0; i < rows; i++){
-            Page p = new Page(process,0,0, i);
-            data.add(p);
+            Page p = new Page(i, 0 ,0,0, "-");
+            data.put(i, p);
         }
     }
 
-    public void setData(Vector  d) {
-        data = d;
-        fireTableChanged(new TableModelEvent(this));
-    }
     public void setData(PageTable pt) {
         data = pt.data;
         fireTableChanged(new TableModelEvent(this));
     }
 
     public void addPage(Page p){
-        data.add(p);
+        data.put(data.size(), p);
         fireTableChanged(new TableModelEvent(this));
     }
 
-    public void removePage(int framenummer){
-        Page p = getPage(framenummer);
+    public void removePage(int pagenummer){
+        Page p = getPage(pagenummer);
         data.remove(p);
         fireTableChanged(new TableModelEvent(this));
     }
@@ -51,21 +49,14 @@ public class PageTable extends AbstractTableModel{
         fireTableChanged(new TableModelEvent(this));
     }
 
-    public Page getPage(int framenummer){
-        for(Object i : data){
-            Page p = (Page)i;
-            if(p.getFramenummer() == framenummer){
+    public Page getPage(int pagenummer){
+        for (Map.Entry<Integer, Page> entry : data.entrySet()) {
+            Page p = entry.getValue();
+            if(p.getVirtualPagenummer() == pagenummer){
                 return p;
             }
         }
         return null;
-    }
-
-    boolean containsPage(int framenummer){
-        if(getPage(framenummer) != null){
-            return true;
-        }
-        return false;
     }
 
 
@@ -77,13 +68,27 @@ public class PageTable extends AbstractTableModel{
         return data.size();
     }
     public void setValueAt(Object value, int row, int col) {
-        Page page = (Page) (data.elementAt(row));
+        Page page = (Page) (data.get(row));
 
         switch (col) {
-            case 0 -> page.setPresentBit((Integer) value);
-            case 1 -> page.setModifyBit((Integer) value);
-            case 2 -> page.setLastAccessTime((Integer) value);
-            case 3 -> page.setFramenummer((Integer) value);
+            case 0 -> page.setVirtualPagenummer((Integer) value);
+            case 1 -> page.setPresentBit((Integer) value);
+            case 2 -> page.setModifyBit((Integer) value);
+            case 3 -> page.setLastAccessTime((Integer) value);
+            case 4 -> page.setFysicalFramenummer((String) value);
+        }
+        fireTableChanged(new TableModelEvent(this));
+    }
+
+    public void setValue(Object value, int pagenummer, int col) {
+        Page page = getPage(pagenummer);
+
+        switch (col) {
+            case 0 -> page.setVirtualPagenummer((Integer) value);
+            case 1 -> page.setPresentBit((Integer) value);
+            case 2 -> page.setModifyBit((Integer) value);
+            case 3 -> page.setLastAccessTime((Integer) value);
+            case 4 -> page.setFysicalFramenummer((String) value);
         }
     }
 
@@ -92,13 +97,14 @@ public class PageTable extends AbstractTableModel{
     }
 
     public Object getValueAt(int row, int col) {
-        Page page = (Page) (data.elementAt(row));
+        Page page = (Page) (data.get(row));
 
         return switch (col) {
-            case 0 -> page.getPresentBit();
-            case 1 -> page.getModifyBit();
-            case 2 -> page.getLastAccessTime();
-            case 3 -> page.getFramenummer();
+            case 0 -> page.getVirtualPagenummer();
+            case 1 -> page.getPresentBit();
+            case 2 -> page.getModifyBit();
+            case 3 -> page.getLastAccessTime();
+            case 4 -> page.getFysicalFramenummer();
             default -> new String();
         };
 

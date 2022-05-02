@@ -5,26 +5,13 @@ import javax.swing.*;
 import java.awt.*;
 
 import javax.swing.border.TitledBorder;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumnModel;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.Vector;
 
 
 public class Main {
@@ -57,6 +44,7 @@ public class Main {
     static JLabel prevFrameLabel = new JLabel("?", SwingConstants.CENTER);
     static JLabel nextOffsetLabel = new JLabel("?", SwingConstants.CENTER);
     static JLabel prevOffsetLabel = new JLabel("?", SwingConstants.CENTER);
+    static JPanel ptpanel = new JPanel(null);
 
 
     public static void main(String[] args) throws ParserConfigurationException, IOException, SAXException, SAXException {
@@ -68,14 +56,20 @@ public class Main {
             centerRenderer.setHorizontalAlignment( JLabel.CENTER );
             pagetable.getColumnModel().getColumn(i).setCellRenderer( centerRenderer );
         }
-        pagetable.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
-            public void valueChanged(ListSelectionEvent event) {
-                Page p = ptmodel.getPage(pagetable.getSelectedRow());
-                toast t = new toast("Page in: " + p.getIn() + " Page out: " + p.getOut(), 150, 400);
-                t.showtoast();
+
+        // Set page info via a toast on double mouseclick at table row
+        pagetable.setFocusable(false);
+        pagetable.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent me) {
+                if (me.getClickCount() == 2) {     // to detect doble click events
+                    Page p = ptmodel.getPage(pagetable.getSelectedRow());
+                    Toast message = new Toast("Page in: " + p.getIn() + " Page out: " + p.getOut());
+                    message.display();
+                }
             }
         });
 
+        //Disable table editing
         ramtable.getTableHeader().setReorderingAllowed(false);
         for(Integer i = 0; i < ramtable.getColumnCount(); i++){
             DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
@@ -140,11 +134,10 @@ public class Main {
         ptscroll.setPreferredSize(new Dimension(300, 450));
         ptscroll.setMaximumSize(new Dimension(300, 600));
 
-        JPanel ptpanel = new JPanel(null);
         ptpanel.setLayout(new BoxLayout(ptpanel, BoxLayout.LINE_AXIS));
         ptpanel.add(ptscroll);
         ptpanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), "Pagetable", TitledBorder.CENTER,
+                BorderFactory.createEtchedBorder(), "Pagetable Start", TitledBorder.CENTER,
                 TitledBorder.TOP));
 
         tables.add(ptpanel, constraints);
@@ -202,16 +195,21 @@ public class Main {
         setInfo();
     }
 
+    //Run only one instruction and adjust al the information
     public static void runOneInstruction(){
+        //Check if already completed all instructions
         if(instructionIndex == list.instructions.size()){
             return;
         };
 
+
+        //Get information of upcoming instruction
         Instruction currentInstruction = list.instructions.get( instructionIndex++ );
         int address = currentInstruction.address;
         int process = currentInstruction.processID;
         String operation = currentInstruction.operation;
 
+        //Find pagetable from this process or make on if this is the first instruction from this process
         PageTable instructionIndexTable;
         if(operation.equals("Start")){
             PageTable pageTable = new PageTable(process);
@@ -222,43 +220,73 @@ public class Main {
             instructionIndexTable = PageTableList.get(process);
         }
 
+        //Find the page in RAM, if not found run the LRU algortim to put this page in RAM
         int pagenummer = getPagenummer(address);
-        PageTable currentPagetable = pages.get(process);
         RamFrame currentFrame = ram.getFrame(pagenummer, process);
         if(currentFrame == null){
-            RamFrame newFrame = new RamFrame(process, pagenummer);
+            RamFrame newFrame = new RamFrame(String.valueOf(process), String.valueOf(pagenummer));
 
-            int newPage;
-            if(!ram.isFull()){
-                newPage = ram.addFrame(newFrame);
+
+            //Check if there is a free slot, otherwise find the frame to replace according to LRU
+            int newFrameIndex;
+            int freeSlot = ram.isFull();
+            if(freeSlot != -1){
+                newFrameIndex = freeSlot;
+                ram.addFrame(newFrame, freeSlot);
             }
             else{
-                //LRU Logic, als test verwijderd het voorlopig telkens de bovenste frame
-                int oldpage = ram.replaceFrame(0, newFrame);
-                currentPagetable.getPage(oldpage).addOut();
-                currentPagetable.setValue(0,oldpage,1);
-                currentPagetable.setValue("-",oldpage,4);
+                //TODO LRU Logic, at the moment replacing the top frame of RAM
+                //Here we return the replaced frame and adjust the info from the old page its pagetable
+                int[] pageinfo = ram.replaceFrame(0, newFrame);
+                int oldPagenummer = pageinfo[0];
+                int oldProcessId = pageinfo[1];
+                int oldFramenummer = pageinfo[2];
 
-                newPage = oldpage;
+                PageTable oldProcessTable = PageTableList.get(oldProcessId);
+
+                oldProcessTable.getPage(oldPagenummer).addOut();
+                oldProcessTable.setValue(0,oldPagenummer,1);
+                oldProcessTable.setValue("-",oldPagenummer,4);
+                pages.updatePageTable(oldProcessId,oldProcessTable);
+
+                newFrameIndex = oldFramenummer;
             }
 
-            currentPagetable.getPage(pagenummer).addIn();
-            currentPagetable.setValue(1,pagenummer,1);
-            currentPagetable.setValue(String.valueOf(newPage),pagenummer,4);
+            //Adjust info from newly added/relaced page in its pagetable
+            instructionIndexTable.getPage(pagenummer).addIn();
+            instructionIndexTable.setValue(1,pagenummer,1);
+            instructionIndexTable.setValue(String.valueOf(newFrameIndex),pagenummer,4);
 
         }
-        currentPagetable.setValue(1,pagenummer,3);
+        instructionIndexTable.setValue(1,pagenummer,3);
 
+        //Updating the page table from this process
         ptmodel.setData(instructionIndexTable);
+        ptpanel.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(), "Pagetable Process " + process, TitledBorder.CENTER,
+                TitledBorder.TOP));
 
-        //setInfo();
+        //Setting the info
+        setInfo();
         System.out.println(instructionIndex);
+
+        //If this is a termination instruction delete all its pages stored in RAM and also the process' pagetable
         if(operation.equals("Terminate")){
+            PageTable oldPagetable = PageTableList.get(process);
+           for(int i = 0; i < oldPagetable.getRowCount(); i++){
+               Page p = oldPagetable.getPage(i);
+
+               if(p.getPresentBit() == 1){
+                   ram.removeFrame(Integer.parseInt(p.getFysicalFramenummer()));
+               }
+           }
+
             pages.removePageTable(process);
         }
     }
 
 
+    //Rewind one instruction by running al the instruction again till the previous one
     public static void rewindOneInstruction(){
         System.out.println(instructionIndex);
 
@@ -276,12 +304,14 @@ public class Main {
         }
     }
 
+    //Run al the instructions left in the system
     public static void runAllInstructions(){
         for(int i = instructionIndex; i < list.instructions.size(); i++){
             runOneInstruction();
         }
     }
 
+    //Pick a instruction set, used in the GUI
     public static InstructionList pickSet(int setNumber){
         if(setNumber == 1){
             return getInstructionList("Instructions_30_3.xml");
@@ -294,6 +324,7 @@ public class Main {
         }
     }
 
+    //Resetting the pagetables, RAM and info
     private static void reset() {
         instructionIndex = 0;
         ptmodel.setData(new PageTable());
@@ -302,6 +333,7 @@ public class Main {
         setInfo();
     }
 
+    //Read the XML instruction set and convert it to a Instruction List
     public static InstructionList getInstructionList(String name){
         File file = new File(name);
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -320,28 +352,31 @@ public class Main {
         return null;
     }
 
+    //Calculate the gamenummer from an address
     public static int getPagenummer(int address){
         return address / pageSize;
     }
 
+    //Set al the info from the next and previous instruction if possible
     public static void setInfo(){
+        //Get next and previous instruction
         Instruction prevInstruction = list.get(instructionIndex - 1);
         Instruction nextInstruction = list.get(instructionIndex);
 
+        //If there is a next instruction set the info !!! offset and fysical adress can't be set because we don't know in which  RAMframe this will be stored
         if(nextInstruction != null){
             nextVirtualLabel.setText(Integer.toString(nextInstruction.address));
             nextFrameLabel.setText(Integer.toString(getPagenummer(nextInstruction.address)));
         }
         else{
             nextVirtualLabel.setText("/");
-            nextFysicalLabel.setText("?");
             nextFrameLabel.setText("/");
-            nextOffsetLabel.setText("?");
         }
+        //If there is a previous instruction set the info, here we calculate some things
         if(prevInstruction != null){
             int address = prevInstruction.address;
             int pagenummer = getPagenummer(prevInstruction.address);
-            int framenummer = Integer.parseInt(pages.get(prevInstruction.processID).getPage(pagenummer).getFysicalFramenummer());
+            int framenummer = Integer.parseInt(ptmodel.getPage(pagenummer).getFysicalFramenummer());
             int offset = address - address / pageSize * pageSize;
             int faddress = framenummer * pageSize + offset;
 
@@ -361,30 +396,6 @@ public class Main {
     }
 
 
-    /*public static void FCFS(NodeList nodelist){
-        System.out.println("Running FCFS...");
-        Processes processes = new Processes(nodelist);
-
-        int grootte = processes.processes.size();
-        int done = 0;
-        System.out.print("0%");
-
-        processes.sortArrivaltime();
-
-        int time = 0;
-        for(Process process : processes.processes){
-            if(time < process.arrivaltime){
-                time = process.arrivaltime;
-            }
-
-            time += process.servicetime;
-            process.await(time);
-            done++;
-            System.out.print("\r" + done/grootte*100 +"%");
-        }
-
-        PlotGraphs(processes,"FCFS");
-    }*/
 }
 
 

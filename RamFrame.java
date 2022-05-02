@@ -1,32 +1,41 @@
 public class RamFrame {
 
-    private Integer processID;
+    private String processID;
 
-    private Integer framenummer;
+    private String pagenummer;
 
     public RamFrame() {
     }
 
-    public RamFrame(Integer pid, Integer fn) {
+    public RamFrame(String pid, String pn) {
         processID = pid;
-        framenummer = fn;
+        pagenummer = pn;
     }
 
-    public Integer getProcessID() {
+    public String getProcessID() {
         return processID;
     }
 
-    public Integer getFramenummer() {
-        return framenummer;
+    public int getProcessIDInt() {
+        return Integer.parseInt(processID);
     }
 
 
-    public void setProcessID(Integer pid) {
+    public String getFramenummer() {
+        return pagenummer;
+    }
+
+    public int getFramenummerInt() {
+        return Integer.parseInt(pagenummer);
+    }
+
+
+    public void setProcessID(String pid) {
         processID = pid;
     }
 
-    public void setFramenummer(Integer fn) {
-        framenummer = fn;
+    public void setFramenummer(String pn) {
+        pagenummer = pn;
     }
 
 }

@@ -210,79 +210,41 @@ public class Main {
         String operation = currentInstruction.operation;
 
         //Find pagetable from this process or make on if this is the first instruction from this process
-        PageTable instructionIndexTable;
         if(operation.equals("Start")){
             PageTable pageTable = new PageTable(process);
-            instructionIndexTable = pageTable;
+
             pages.addPageTable(process,pageTable);
+            ram.addProcess(process);
         }
-        else{
-            instructionIndexTable = PageTableList.get(process);
-        }
+        else if(operation.equals("Write") || operation.equals("Read")){
+            //Find the page in RAM, if not found run the LRU algortim to put this page in RAM
+            int pagenummer = getPagenummer(address);
+            RamFrame currentFrame = ram.getFrame(pagenummer, process);
+            if(currentFrame == null){
+                RamFrame newFrame = new RamFrame(String.valueOf(process), String.valueOf(pagenummer));
 
-        //Find the page in RAM, if not found run the LRU algortim to put this page in RAM
-        int pagenummer = getPagenummer(address);
-        RamFrame currentFrame = ram.getFrame(pagenummer, process);
-        if(currentFrame == null){
-            RamFrame newFrame = new RamFrame(String.valueOf(process), String.valueOf(pagenummer));
-
-
-            //Check if there is a free slot, otherwise find the frame to replace according to LRU
-            int newFrameIndex;
-            int freeSlot = ram.isFull();
-            if(freeSlot != -1){
-                newFrameIndex = freeSlot;
-                ram.addFrame(newFrame, freeSlot);
-            }
-            else{
-                //TODO LRU Logic, at the moment replacing the top frame of RAM
+                //TODO LRU Logic in replaceFrame
                 //Here we return the replaced frame and adjust the info from the old page its pagetable
-                int[] pageinfo = ram.replaceFrame(0, newFrame);
-                int oldPagenummer = pageinfo[0];
-                int oldProcessId = pageinfo[1];
-                int oldFramenummer = pageinfo[2];
+                pages = ram.replaceFrame(newFrame, pages);
 
-                PageTable oldProcessTable = PageTableList.get(oldProcessId);
-
-                oldProcessTable.getPage(oldPagenummer).addOut();
-                oldProcessTable.setValue(0,oldPagenummer,1);
-                oldProcessTable.setValue("-",oldPagenummer,4);
-                pages.updatePageTable(oldProcessId,oldProcessTable);
-
-                newFrameIndex = oldFramenummer;
             }
 
-            //Adjust info from newly added/relaced page in its pagetable
-            instructionIndexTable.getPage(pagenummer).addIn();
-            instructionIndexTable.setValue(1,pagenummer,1);
-            instructionIndexTable.setValue(String.valueOf(newFrameIndex),pagenummer,4);
+            //Updating the page table from this process
+            ptmodel.setData(pages.get(process));
+            ptpanel.setBorder(BorderFactory.createTitledBorder(
+                    BorderFactory.createEtchedBorder(), "Pagetable Process " + process, TitledBorder.CENTER,
+                    TitledBorder.TOP));
 
         }
-        instructionIndexTable.setValue(1,pagenummer,3);
-
-        //Updating the page table from this process
-        ptmodel.setData(instructionIndexTable);
-        ptpanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), "Pagetable Process " + process, TitledBorder.CENTER,
-                TitledBorder.TOP));
-
-        //Setting the info
-        setInfo();
-        System.out.println(instructionIndex);
-
         //If this is a termination instruction delete all its pages stored in RAM and also the process' pagetable
-        if(operation.equals("Terminate")){
-            PageTable oldPagetable = PageTableList.get(process);
-           for(int i = 0; i < oldPagetable.getRowCount(); i++){
-               Page p = oldPagetable.getPage(i);
-
-               if(p.getPresentBit() == 1){
-                   ram.removeFrame(Integer.parseInt(p.getFysicalFramenummer()));
-               }
-           }
-
+        else{
+            ram.removeProcess(process);
             pages.removePageTable(process);
         }
+
+        //Setting the info
+        //setInfo();
+        System.out.println(instructionIndex);
     }
 
 

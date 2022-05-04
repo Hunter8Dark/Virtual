@@ -21,11 +21,11 @@ public class RamFrame {
     }
 
 
-    public String getFramenummer() {
+    public String getPagenummer() {
         return pagenummer;
     }
 
-    public int getFramenummerInt() {
+    public int getPagenummerInt() {
         return Integer.parseInt(pagenummer);
     }
 
@@ -34,7 +34,7 @@ public class RamFrame {
         processID = pid;
     }
 
-    public void setFramenummer(String pn) {
+    public void setPagenummer(String pn) {
         pagenummer = pn;
     }
 

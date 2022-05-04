@@ -32,7 +32,7 @@ public class Ram extends AbstractTableModel{
     }
 
     void removeProcess(int processId){
-        processes.remove(processId);
+        processes.remove(new Integer(processId));
         allocateProcess();
     }
 

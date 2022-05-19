@@ -46,11 +46,22 @@ public class Ram extends AbstractTableModel{
         else{
             //TODO Replace full processes
             int aantalProcesses = maxFrames / processes.size();
-            for(int i = 0; i < processes.size(); i++){
-                for(int j = 0; j < aantalProcesses; j++){
-                    RamFrame f = new RamFrame(String.valueOf(processes.get(i)),emptyChar);
-                    frames.replace(i * aantalProcesses + j, f);
+            int verwijderen = aantalProcesses - maxFrames / (processes.size() - 1);
+            for(int process:processes){
+                Map<Integer, RamFrame> processFrames = getProcessFrames(process);
+
+                RamFrame replacement = new RamFrame();
+                int pos = 0;
+                for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
+                    RamFrame oldFrame = frames.get(entry.getKey());
+                    if(oldFrame.getLastused() < replacement.getLastused()){
+                        replacement = oldFrame;
+                        pos = entry.getKey();
+                    }
                 }
+                RamFrame f = new RamFrame(String.valueOf(process),emptyChar);
+                frames.replace(process * aantalProcesses + j, f);
+
             }
         }
 
@@ -58,6 +69,8 @@ public class Ram extends AbstractTableModel{
     }
 
     void replaceProcess(){
+
+
         //TODO Search best process to erase out of RAM
 
     }
@@ -99,23 +112,25 @@ public class Ram extends AbstractTableModel{
         }
         else{
             Map<Integer, RamFrame> processFrames = getProcessFrames(processID);
+            RamFrame replacement = new RamFrame();
+            int pos = 0;
             for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
-                //TODO LRU Logic, currently FIFO (runs first loop and directly breaks)
-
                 RamFrame oldFrame = frames.get(entry.getKey());
-                int oldPagenummer = oldFrame.getPagenummerInt();
-                pagetable.getPage(oldPagenummer).setPresentBit(0);
-                pagetable.getPage(oldPagenummer).setFysicalFramenummer("-");
-                pagetable.getPage(oldPagenummer).addOut();
-
-
-                pagetable.getPage(pagenummer).setPresentBit(1);
-                pagetable.getPage(pagenummer).setFysicalFramenummer(String.valueOf(entry.getKey()));
-                pagetable.getPage(pagenummer).addIn();
-
-                frames.replace(entry.getKey(), f);
-                break;
+                if(oldFrame.getLastused() < replacement.getLastused()){
+                    replacement = oldFrame;
+                    pos = entry.getKey();
+                }
             }
+            frames.replace(pos, f);
+            int oldPagenummer = replacement.getPagenummerInt();
+            pagetable.getPage(oldPagenummer).setPresentBit(0);
+            pagetable.getPage(oldPagenummer).setFysicalFramenummer("-");
+            pagetable.getPage(oldPagenummer).addOut();
+
+
+            pagetable.getPage(pagenummer).setPresentBit(1);
+            pagetable.getPage(pagenummer).setFysicalFramenummer(String.valueOf(pos));
+            pagetable.getPage(pagenummer).addIn();
         }
 
         fireTableChanged(new TableModelEvent(this));
@@ -157,7 +172,6 @@ public class Ram extends AbstractTableModel{
         }
         return -1;
     }
-
 
     //Standaard code voor JTable Template, niet verwijderen!
     public int getColumnCount() {

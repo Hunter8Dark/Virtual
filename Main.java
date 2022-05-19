@@ -48,7 +48,7 @@ public class Main {
 
 
     public static void main(String[] args) throws ParserConfigurationException, IOException, SAXException, SAXException {
-        list = getInstructionList("Instructions_30_3.xml");
+        list = getInstructionList("Instructions_20000_4.xml");
 
         pagetable.getTableHeader().setReorderingAllowed(false);
         for(Integer i = 0; i < pagetable.getColumnCount(); i++){
@@ -220,15 +220,17 @@ public class Main {
             //Find the page in RAM, if not found run the LRU algortim to put this page in RAM
             int pagenummer = getPagenummer(address);
             RamFrame currentFrame = ram.getFrame(pagenummer, process);
-            if(currentFrame == null){
-                RamFrame newFrame = new RamFrame(String.valueOf(process), String.valueOf(pagenummer));
 
-                //TODO LRU Logic in replaceFrame
+            if(currentFrame == null){
+                RamFrame newFrame = new RamFrame(String.valueOf(process), String.valueOf(pagenummer),instructionIndex);
+
                 //Here we return the replaced frame and adjust the info from the old page its pagetable
                 pages = ram.replaceFrame(newFrame, pages);
 
             }
-
+            else{
+                currentFrame.setLastused(instructionIndex);
+            }
             //Updating the page table from this process
             ptmodel.setData(pages.get(process));
             ptpanel.setBorder(BorderFactory.createTitledBorder(
@@ -325,7 +327,7 @@ public class Main {
         Instruction prevInstruction = list.get(instructionIndex - 1);
         Instruction nextInstruction = list.get(instructionIndex);
 
-        //If there is a next instruction set the info !!! offset and fysical adress can't be set because we don't know in which  RAMframe this will be stored
+        //If there is a next instruction set the info !!! offset and physical address can't be set because we don't know in which RAM frame this will be stored
         if(nextInstruction != null){
             nextVirtualLabel.setText(Integer.toString(nextInstruction.address));
             nextFrameLabel.setText(Integer.toString(getPagenummer(nextInstruction.address)));

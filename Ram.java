@@ -60,7 +60,7 @@ public class Ram extends AbstractTableModel{
                     }
                 }
                 RamFrame f = new RamFrame(String.valueOf(process),emptyChar);
-                frames.replace(process * aantalProcesses + j, f);
+                frames.replace(process * aantalProcesses, f);
 
             }
         }
@@ -69,7 +69,21 @@ public class Ram extends AbstractTableModel{
     }
 
     void replaceProcess(){
-
+        int replacement;
+        RamFrame help = new RamFrame();
+        for(int i = 0; i < maxProcesses; i++){
+            for(int j = 0; j < 3; j++){
+                RamFrame oldFrame = frames.get((i+1)*(j+1));
+                if(oldFrame.getLastused() < help.getLastused()){
+                    help = oldFrame;
+                }
+            }
+        }
+        replacement = help.getProcessIDInt();
+        Map<Integer, RamFrame> processFrames = getProcessFrames(replacement);
+        for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()){
+            removeFrame(entry.getKey());
+        }
 
         //TODO Search best process to erase out of RAM
 

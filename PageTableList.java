@@ -1,5 +1,6 @@
 import javax.swing.event.TableModelEvent;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class PageTableList {
@@ -10,20 +11,38 @@ public class PageTableList {
 
     }
 
+
     void addPageTable(int processID, PageTable pageTable){
         pages.put(processID, pageTable);
-        pageTable.updatePage();
     }
     void updatePageTable(int processID, PageTable pageTable) {
         pages.replace(processID, pageTable);
-        pageTable.updatePage();
     }
     void removePageTable(int processId){
         pages.remove(processId);
     }
 
-    void getPageTable(int processID){
-        pages.remove(processID);
+    void removeFrameFromRam(RamFrame f, String emptyChar){
+        if(f.getProcessID().equals(emptyChar) ||f.getPagenummer().equals(emptyChar)){
+            return;
+        }
+
+        int processID = f.getProcessIDInt();
+        int pagenummer = f.getPagenummerInt();
+
+        pages.get(processID).removedFromRam(pagenummer);
+
+    }
+
+    void addFrameToRam(RamFrame f, int index, String emptyChar){
+        if(f.getProcessID().equals(emptyChar) ||f.getPagenummer().equals(emptyChar)){
+            return;
+        }
+
+        int processID = f.getProcessIDInt();
+        int pagenummer = f.getPagenummerInt();
+
+        pages.get(processID).addToRam(pagenummer, index);
     }
 
     static PageTable get(int processId){
@@ -33,4 +52,5 @@ public class PageTableList {
     void reset(){
         pages.clear();
     }
+
 }

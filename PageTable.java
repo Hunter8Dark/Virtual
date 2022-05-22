@@ -2,7 +2,6 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.table.AbstractTableModel;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 
 
 public class PageTable extends AbstractTableModel{
@@ -22,11 +21,8 @@ public class PageTable extends AbstractTableModel{
         }
     }
 
-    public PageTable(int process) {
-        for(int i = 0; i < rows; i++){
-            Page p = new Page(i, 0 ,0,0, "-");
-            data.put(i, p);
-        }
+    public PageTable(boolean ignoredEmpty) {
+
     }
 
     public void setData(PageTable pt) {
@@ -34,19 +30,37 @@ public class PageTable extends AbstractTableModel{
         fireTableChanged(new TableModelEvent(this));
     }
 
-    public void addPage(Page p){
-        data.put(data.size(), p);
-        fireTableChanged(new TableModelEvent(this));
-    }
-
-    public void removePage(int pagenummer){
+    public void removedFromRam(int pagenummer){
         Page p = getPage(pagenummer);
-        data.remove(p);
+
+        p.setPresentBit(0);
+        p.setFysicalFramenummer("-");
+        p.setModifyBit(0);
+        p.setLastAccessTime(0);
+        p.addOut();
+
+        fireTableChanged(new TableModelEvent(this));
+    }
+    public void addToRam(int pagenummer, int index){
+        Page p = getPage(pagenummer);
+
+        p.setPresentBit(1);
+        p.setFysicalFramenummer(String.valueOf(index));
+        p.addIn();
+
         fireTableChanged(new TableModelEvent(this));
     }
 
-    public void updatePage(){
-        fireTableChanged(new TableModelEvent(this));
+    public void setModified(int pagenummer){
+        Page p = getPage(pagenummer);
+
+        p.setModifyBit(1);
+    }
+
+    public void setLastAccesed(int pagenummer, int lat){
+        Page p = getPage(pagenummer);
+
+        p.setLastAccessTime(lat);
     }
 
     public Page getPage(int pagenummer){

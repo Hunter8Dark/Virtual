@@ -6,7 +6,7 @@ import java.util.List;
 
 public class Ram extends AbstractTableModel{
 
-    public static Map<Integer,RamFrame> frames = new HashMap<Integer, RamFrame>();
+    public static Map<Integer,RamFrame> frames = new HashMap<>();
     private final int maxFrames = 12;
     private final int maxProcesses = 4;
     private List<Integer> processes = new ArrayList<Integer>();
@@ -15,78 +15,153 @@ public class Ram extends AbstractTableModel{
 
 
     public Ram() {
-        for(int i = 0; i < maxFrames; i++){
-            RamFrame f = new RamFrame(emptyChar,emptyChar);
-            frames.put(i, f);
-        }
+        reset();
     }
 
-    void addProcess(int processId){
-        if(processes.size() == maxProcesses - 1){
-            replaceProcess();
+    void addProcess(int processId, PageTableList pages){
+        if(processes.size() == maxProcesses){
+            System.out.println("Error: Trying to add to many processes!");
         }
-        else{
+        else if(processes.size() == 0){
             processes.add(processId);
-        }
-        allocateProcess();
-    }
 
-    void removeProcess(int processId){
-        processes.remove(new Integer(processId));
-        allocateProcess();
-    }
-
-    void allocateProcess(){
-        if(processes.size() == 0){
             for(int i = 0; i < maxFrames; i++){
-                RamFrame f = new RamFrame(emptyChar,emptyChar);
+                RamFrame f = new RamFrame(String.valueOf(processId), emptyChar);
                 frames.put(i, f);
             }
         }
         else{
-            //TODO Replace full processes
-            int aantalProcesses = maxFrames / processes.size();
-            int verwijderen = aantalProcesses - maxFrames / (processes.size() - 1);
-            for(int process:processes){
-                Map<Integer, RamFrame> processFrames = getProcessFrames(process);
+            processes.add(processId);
 
-                RamFrame replacement = new RamFrame();
-                int pos = 0;
-                for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
-                    RamFrame oldFrame = frames.get(entry.getKey());
-                    if(oldFrame.getLastused() < replacement.getLastused()){
-                        replacement = oldFrame;
-                        pos = entry.getKey();
-                    }
-                }
-                RamFrame f = new RamFrame(String.valueOf(process),emptyChar);
-                frames.replace(process * aantalProcesses, f);
+            allocateRemovedFrames(pages);
 
+            List<Integer> nullFrames = getNullFrames();
+            for(int index : nullFrames){
+                RamFrame f = new RamFrame(String.valueOf(processId), emptyChar);
+                frames.put(index, f);
             }
         }
 
         fireTableChanged(new TableModelEvent(this));
     }
 
-    void replaceProcess(){
-        int replacement;
-        RamFrame help = new RamFrame();
-        for(int i = 0; i < maxProcesses; i++){
-            for(int j = 0; j < 3; j++){
-                RamFrame oldFrame = frames.get((i+1)*(j+1));
-                if(oldFrame.getLastused() < help.getLastused()){
-                    help = oldFrame;
+    void removeProcess(Integer processId, PageTableList pages){
+        processes.remove(processId);
+
+        Map<Integer, RamFrame> processFrames = getProcessFrames(processId);
+        for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
+
+            RamFrame f = new RamFrame(emptyChar, emptyChar);
+            pages.removeFrameFromRam(entry.getValue(), emptyChar);
+            frames.put(entry.getKey(), f);
+        }
+
+        allocateAddedFrames();
+
+        fireTableChanged(new TableModelEvent(this));
+    }
+
+    void allocateRemovedFrames(PageTableList pages){
+        int aantalProcesses = maxFrames / processes.size();
+        int processesToRemove = maxFrames / (processes.size() - 1) - aantalProcesses;
+
+        for(int i = 0; i < processes.size(); i++){
+
+            int processID = processes.get(i);
+            RamFrame f = new RamFrame(emptyChar,emptyChar);
+            removeNumberOfFrames(f, processID, processesToRemove, pages);
+        }
+
+    }
+
+    void allocateAddedFrames(){
+        if(processes.isEmpty()){
+            reset();
+        }
+        else{
+
+            List<Integer> nullFrames = getNullFrames();
+            int aantalProcesses = maxFrames / processes.size();
+            int processesToAdd = aantalProcesses - maxFrames / (processes.size() + 1);
+            int start = 0;
+
+            for(int processID : processes){
+
+                for (int i = 0; i < processesToAdd; i++) {
+
+                    RamFrame f = new RamFrame(String.valueOf(processID), emptyChar);
+                    frames.put(nullFrames.get(0), f);
+                    nullFrames.remove(start);
                 }
             }
         }
-        replacement = help.getProcessIDInt();
-        Map<Integer, RamFrame> processFrames = getProcessFrames(replacement);
-        for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()){
-            removeFrame(entry.getKey());
+    }
+
+    public void addFrame(RamFrame f, PageTableList  pages){
+        int processID = f.getProcessIDInt();
+        int freeFrame = getFreeFrame(processID);
+
+        if(freeFrame != -1){
+            frames.replace(freeFrame, f);
+            pages.addFrameToRam(f, freeFrame, emptyChar);
+        }
+        else{
+            replaceFrame(f, processID, pages);
         }
 
-        //TODO Search best process to erase out of RAM
+        fireTableChanged(new TableModelEvent(this));
+    }
 
+    void replaceFrame(RamFrame f, int processID, PageTableList pages){
+        Map<Integer, RamFrame> processFrames = getProcessFrames(processID);
+        PageTable pageTable = pages.get(processID);
+
+        RamFrame replaceFrame = new RamFrame();
+        int currentLastAccesed = 1000000;
+        int replaceIndex = -1;
+
+        for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
+
+            RamFrame frame = frames.get(entry.getKey());
+            Page p =  pageTable.getPage(frame.getPagenummerInt());
+            int lastAccesed = p.getLastAccessTime();
+
+            if(currentLastAccesed > lastAccesed){
+
+                replaceFrame = frame;
+                currentLastAccesed = lastAccesed;
+                replaceIndex = entry.getKey();
+            }
+        }
+
+        if(replaceIndex != -1){
+            frames.replace(replaceIndex, f);
+            pages.addFrameToRam(f, replaceIndex, emptyChar);
+            pages.removeFrameFromRam(replaceFrame, emptyChar);
+        }
+        else{
+            System.out.println("Error replacing frame, no index found!");
+        }
+
+    }
+
+    void removeNumberOfFrames(RamFrame f,int processID, int aantal, PageTableList pages){
+        int max = maxFrames / processes.size();
+        for(int i = 0; i < aantal; i++){
+
+            int numberOfFrames = getNumberOfFrames(processID);
+            if(numberOfFrames > max){
+
+                int freeFrame = getFreeFrame(processID);
+                if(freeFrame != -1){
+                    frames.replace(freeFrame, f);
+                    pages.addFrameToRam(f, freeFrame, emptyChar);
+                }
+                else{
+                    replaceFrame(f, processID, pages);
+                }
+            }
+        }
     }
 
     void reset(){
@@ -98,59 +173,6 @@ public class Ram extends AbstractTableModel{
         processes.clear();
 
         fireTableChanged(new TableModelEvent(this));
-    }
-
-    public void addFrame(RamFrame f, int index){
-        frames.put(index,f);
-        fireTableChanged(new TableModelEvent(this));
-    }
-
-    public void removeFrame(int framenummer){
-        RamFrame f = new RamFrame(emptyChar,emptyChar);
-        frames.replace(framenummer, f);
-        fireTableChanged(new TableModelEvent(this));
-    }
-
-    public PageTableList replaceFrame(RamFrame f, PageTableList pagetables){
-        int processID = f.getProcessIDInt();
-        PageTable pagetable = pagetables.get(processID);
-        int pagenummer = f.getPagenummerInt();
-
-        int freeFrame = getFreeFrame(processID);
-        if(freeFrame != -1){
-            frames.replace(freeFrame, f);
-
-            pagetable.getPage(pagenummer).setPresentBit(1);
-            pagetable.getPage(pagenummer).setFysicalFramenummer(String.valueOf(freeFrame));
-            pagetable.getPage(pagenummer).addIn();
-        }
-        else{
-            Map<Integer, RamFrame> processFrames = getProcessFrames(processID);
-            RamFrame replacement = new RamFrame();
-            int pos = 0;
-            for (Map.Entry<Integer, RamFrame> entry : processFrames.entrySet()) {
-                RamFrame oldFrame = frames.get(entry.getKey());
-                if(oldFrame.getLastused() < replacement.getLastused()){
-                    replacement = oldFrame;
-                    pos = entry.getKey();
-                }
-            }
-            frames.replace(pos, f);
-            int oldPagenummer = replacement.getPagenummerInt();
-            pagetable.getPage(oldPagenummer).setPresentBit(0);
-            pagetable.getPage(oldPagenummer).setFysicalFramenummer("-");
-            pagetable.getPage(oldPagenummer).addOut();
-
-
-            pagetable.getPage(pagenummer).setPresentBit(1);
-            pagetable.getPage(pagenummer).setFysicalFramenummer(String.valueOf(pos));
-            pagetable.getPage(pagenummer).addIn();
-        }
-
-        fireTableChanged(new TableModelEvent(this));
-
-        pagetables.updatePageTable(processID, pagetable);
-        return pagetables;
     }
 
     public RamFrame getFrame(int pagenummer, int processID){
@@ -170,6 +192,11 @@ public class Ram extends AbstractTableModel{
         Map<Integer, RamFrame> tmp = new HashMap<>();
         for (Map.Entry<Integer, RamFrame> entry : frames.entrySet()) {
             RamFrame f = entry.getValue();
+            if(f.getProcessID().equals(emptyChar))
+            {
+                continue;
+            }
+
             if(f.getProcessIDInt() == processID){
                 tmp.put(entry.getKey(),f);
             }
@@ -180,12 +207,33 @@ public class Ram extends AbstractTableModel{
     public int getFreeFrame(int processID){
         for (Map.Entry<Integer, RamFrame> entry : frames.entrySet()) {
             RamFrame f = entry.getValue();
+            if(f.getProcessID().equals(emptyChar)){
+                continue;
+            }
+
             if(f.getPagenummer().equals(emptyChar) && f.getProcessIDInt() == processID){
                 return entry.getKey();
             }
         }
         return -1;
     }
+    public List<Integer> getNullFrames(){
+        List<Integer> nullFrames = new ArrayList<>();
+
+        for (Map.Entry<Integer, RamFrame> entry : frames.entrySet()) {
+            RamFrame f = entry.getValue();
+            if(f.getProcessID().equals(emptyChar)){
+                nullFrames.add(entry.getKey());
+            }
+        }
+        return nullFrames;
+    }
+
+    public int getNumberOfFrames(int processID){
+        Map<Integer, RamFrame> processFrames = getProcessFrames(processID);
+        return  processFrames.size();
+    }
+
 
     //Standaard code voor JTable Template, niet verwijderen!
     public int getColumnCount() {
